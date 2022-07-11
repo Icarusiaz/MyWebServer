@@ -1,0 +1,1 @@
+/usr/bin/g++  -g  -rdynamic CMakeFiles/main_exe.dir/main.cpp.o CMakeFiles/main_exe.dir/http/http_conn.cpp.o  -o main_exe 
