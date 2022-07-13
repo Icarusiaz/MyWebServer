@@ -1,12 +1,12 @@
 [
 {
   "directory": "/home/von/Desktop/MyWebServer/build",
-  "command": "/usr/bin/g++   -I/home/von/Desktop/MyWebServer/http  -g   -o CMakeFiles/main_exe.dir/main.cpp.o -c /home/von/Desktop/MyWebServer/main.cpp",
+  "command": "/usr/bin/g++   -I/home/von/Desktop/MyWebServer/http, -I/home/von/Desktop/MyWebServer/lock  -g   -o CMakeFiles/main_exe.dir/main.cpp.o -c /home/von/Desktop/MyWebServer/main.cpp",
   "file": "/home/von/Desktop/MyWebServer/main.cpp"
 },
 {
   "directory": "/home/von/Desktop/MyWebServer/build",
-  "command": "/usr/bin/g++   -I/home/von/Desktop/MyWebServer/http  -g   -o CMakeFiles/main_exe.dir/http/http_conn.cpp.o -c /home/von/Desktop/MyWebServer/http/http_conn.cpp",
+  "command": "/usr/bin/g++   -I/home/von/Desktop/MyWebServer/http, -I/home/von/Desktop/MyWebServer/lock  -g   -o CMakeFiles/main_exe.dir/http/http_conn.cpp.o -c /home/von/Desktop/MyWebServer/http/http_conn.cpp",
   "file": "/home/von/Desktop/MyWebServer/http/http_conn.cpp"
 }
 ]

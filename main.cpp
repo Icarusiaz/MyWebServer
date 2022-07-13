@@ -4,6 +4,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <iostream>
+
+#include "./lock/locker.h"
+#include "./threadpool/threadpool.h"
 #include "./http/http_conn.h"
 
 #define MAX_FD 65536           //最大文件描述符
@@ -24,6 +27,17 @@ void show_error(int connfd, const char *info)
 // int main(int argc, char *argv[])
 int main()
 {
+    //创建线程池
+    threadpool<http_conn> *pool = NULL;
+    try
+    {
+        pool = new threadpool<http_conn>;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+
     // int port = atoi(argv[1]);
     int port = 8001;
 
@@ -123,6 +137,7 @@ int main()
             //处理异常事件
             else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR))
             {
+                users[sockfd].close_conn();
                 // 服务器关闭连接
             }
             //处理客户连接上接收到的数据
@@ -133,11 +148,13 @@ int main()
                 {
                     //处理读入的请求
                     std::cout << users[sockfd].m_read_buf << std::endl;
-                    users[sockfd].process();
+                    // users[sockfd].process();
+                    pool->append(users + sockfd);
                 }
                 else
                 {
                     // 服务器关闭连接
+                    users[sockfd].close_conn();
                 }
             }
             else if (events[i].events & EPOLLOUT)
@@ -149,6 +166,10 @@ int main()
             }
         }
     }
+    close(epollfd);
+    close(listenfd);
+    delete[] users;
+    delete pool;
 
     return 0;
 }

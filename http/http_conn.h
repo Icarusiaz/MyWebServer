@@ -131,6 +131,7 @@ public:
     static int m_user_count;
     // MYSQL *mysql;
 
+    //为了调试打印，设为公有变量
     char m_read_buf[READ_BUFFER_SIZE];
 
 private:
