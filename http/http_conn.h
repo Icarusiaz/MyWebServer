@@ -18,6 +18,10 @@
 #include <sys/wait.h>
 #include <sys/uio.h>
 
+#include "../utf8/utf8.h"
+#include "../lock/locker.h"
+#include "../CGImysql/sql_connection_pool.h"
+
 class http_conn
 {
 public:
@@ -87,7 +91,7 @@ public:
     }
 
     //同步线程初始化数据库读取表
-    // void initmysql_result();
+    void initmysql_result();
     // CGI使用线程池初始化数据库表
     // void initresultFile(connection_pool *connPool);
 
@@ -129,7 +133,6 @@ private:
 public:
     static int m_epollfd;
     static int m_user_count;
-    // MYSQL *mysql;
 
     //为了调试打印，设为公有变量
     char m_read_buf[READ_BUFFER_SIZE];

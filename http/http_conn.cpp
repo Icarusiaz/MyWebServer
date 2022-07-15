@@ -1,5 +1,7 @@
 #include <map>
-#include "http_conn.h"
+#include "./http_conn.h"
+#include <map>
+#include <mysql/mysql.h>
 
 //定义http响应的一些状态信息
 const char *ok_200_title = "OK";
@@ -15,6 +17,49 @@ const char *error_500_form = "There was an unusual problem serving the request f
 //网站根目录，文件夹内存放请求的资源和跳转的html文件
 //当浏览器出现连接重置时，可能是网站根目录出错或http响应格式出错或者访问的文件中内容完全为空
 const char *doc_root = "/home/von/Desktop/MyWebServer/root";
+
+//创建数据库连接池
+connection_pool *connPool = connection_pool::GetInstance("localhost", "root", "1234", "myserver", 3306, 5);
+
+//将表中的用户名和密码放入map
+map<string, string> users;
+
+void http_conn::initmysql_result()
+{
+    //先从连接池中取一个连接
+    MYSQL *mysql = connPool->GetConnection();
+
+    //在user表中检索username，passwd数据，浏览器端输入;返回0则成功
+    if (mysql_query(mysql, "SELECT username,passwd FROM user"))
+    {
+        printf("INSERT error:%s\n", mysql_error(mysql));
+        // return;
+    }
+
+    //从表中检索完整的结果集
+    MYSQL_RES *result = mysql_store_result(mysql);
+
+    //返回结果集中的列数
+    int num_fields = mysql_num_fields(result);
+
+    //返回所有字段结构的数组
+    MYSQL_FIELD *fields = mysql_fetch_fields(result);
+
+    //从结果集中获取下一行，将对应的用户名和密码，存入map中
+    while (MYSQL_ROW row = mysql_fetch_row(result))
+    {
+        string temp1(row[0]);
+        string temp2(row[1]);
+        users[temp1] = temp2;
+    }
+
+    printf("%s\n", "数据库中的用户：");
+    map<string, string>::iterator it;
+    for (it = users.begin(); it != users.end(); it++)
+    {
+        printf("%s %s\n", (*it).first.c_str(), (*it).second.c_str());
+    }
+}
 
 int http_conn::m_user_count = 0;
 int http_conn::m_epollfd = -1;
@@ -208,6 +253,7 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char *text)
     else if (strcasecmp(method, "POST") == 0)
     {
         m_method = POST;
+        cgi = 1;
     }
     else
         return BAD_REQUEST;
@@ -312,6 +358,7 @@ http_conn::HTTP_CODE http_conn::parse_content(char *text)
         text[m_content_length] = '\0';
         // POST请求中最后为输入的用户名和密码
         m_string = text;
+
         return GET_REQUEST;
     }
     return NO_REQUEST;
@@ -340,7 +387,10 @@ http_conn::HTTP_CODE http_conn::process_read()
             //解析请求行
             ret = parse_request_line(text);
             if (ret == BAD_REQUEST)
+            {
+                printf("%s\n", "process_read() 解析请求行错误！");
                 return BAD_REQUEST;
+            }
             break;
         }
         case CHECK_STATE_HEADER:
@@ -348,11 +398,14 @@ http_conn::HTTP_CODE http_conn::process_read()
             //解析请求头
             ret = parse_headers(text);
             if (ret == BAD_REQUEST)
+            {
+                printf("%s\n", "process_read() 解析请求头错误！");
                 return BAD_REQUEST;
-
+            }
             //完整解析GET请求后，跳转到报文响应函数
             else if (ret == GET_REQUEST)
             {
+                printf("%s\n", "process_read() 已经完整解析GET请求");
                 return do_request();
             }
             break;
@@ -386,12 +439,87 @@ http_conn::HTTP_CODE http_conn::do_request()
     //找到m_url中/的位置
     const char *p = strrchr(m_url, '/');
 
+    printf("%s%d\n", "do_request() 的cgi = ", cgi);
+
     //实现登录和注册校验
     if (cgi == 1 && (*(p + 1) == '2' || *(p + 1) == '3'))
     {
         // 根据标志判断是登录检测还是注册检测
+        char flag = m_url[1];
+        char *m_url_real = (char *)malloc(sizeof(char) * 200);
+        strcpy(m_url_real, "/");
+        strcpy(m_url_real, m_url + 2);
+        strncpy(m_real_file + len, m_url_real, FILENAME_LEN - len - 1);
+        free(m_url_real);
+
+        // utf8转中文
+        string temp = UTF8Url::Decode(m_string);
+        strcpy(m_string, temp.c_str());
+        printf("%s%s\n", "m_string: ", m_string);
+
+        //将用户名和密码提取出来
+        char name[100], password[100];
+        int i;
+        for (i = 5; m_string[i] != '&'; i++)
+        {
+            name[i - 5] = m_string[i];
+        }
+        name[i - 5] = '\0';
+
+        int j = 0;
+        for (i = i + 10; m_string[i] != '\0'; ++i, ++j)
+            password[j] = m_string[i];
+        password[j] = '\0';
+
         // 同步线程登录校验
-        // CGI多进程登录校验
+        pthread_mutex_t lock;
+        pthread_mutex_init(&lock, NULL);
+
+        //从连接池中取一个连接
+        MYSQL *mysql = connPool->GetConnection();
+
+        //如果是注册，先检测数据库中是否有重名的
+        //没有重名的，进行增加数据
+        char *sql_insert = (char *)malloc(sizeof(char) * 200);
+        strcpy(sql_insert, "INSERT INTO user(username, passwd) VALUES(");
+        strcat(sql_insert, "'");
+        strcat(sql_insert, name);
+        strcat(sql_insert, "', '");
+        strcat(sql_insert, password);
+        strcat(sql_insert, "')");
+
+        //注册
+        if (*(p + 1) == '3')
+        {
+            //未找到
+            if (users.find(name) == users.end())
+            {
+                pthread_mutex_lock(&lock);
+                int res = mysql_query(mysql, sql_insert);
+                printf("%s%s%d\n", sql_insert, "查询结果：", res);
+
+                users.insert(pair<string, string>(name, password));
+                pthread_mutex_unlock(&lock);
+
+                if (!res)
+                    strcpy(m_url, "/log.html");
+                else
+                    strcpy(m_url, "/registerError.html");
+            }
+            else
+                strcpy(m_url, "/registerError.html");
+        }
+        //如果是登录，直接判断
+        //若浏览器端输入的用户名和密码在表中可以查找到，返回1，否则返回0
+        else if (*(p + 1) == '2')
+        {
+            printf("%s%s%s%s\n", "do_request()接收到的用户: ", name, "密码: ", password);
+            if (users.find(name) != users.end() && users[name] == password)
+                strcpy(m_url, "/welcome.html");
+            else
+                strcpy(m_url, "/logError.html");
+        }
+        connPool->ReleaseConnection(mysql);
     }
 
     //如果请求资源为/0，表示跳转注册界面
@@ -662,6 +790,7 @@ bool http_conn::write()
                 }
                 //重新注册写事件
                 modfd(m_epollfd, m_sockfd, EPOLLOUT);
+                printf("%s\n", "write()注册了写事件");
                 return true;
             }
             //如果发送失败，但不是缓冲区问题，取消映射
@@ -697,16 +826,19 @@ bool http_conn::write()
 
 void http_conn::process()
 {
+    printf("%s\n", "process()开始解析报文");
     //报文解析
     HTTP_CODE read_ret = process_read();
 
     // NO_REQUEST，表示请求不完整，需要继续接收请求数据
     if (read_ret == NO_REQUEST)
     {
+        printf("%s\n", "process() 报文不完整！");
         //注册并监听读事件（m_sockfd 已经加入epoll）
         modfd(m_epollfd, m_sockfd, EPOLLIN);
         return;
     }
+    printf("%s\n", "process()解析报文完毕");
 
     //调用process_write完成报文响应，写入写缓存
     bool write_ret = process_write(read_ret);
@@ -716,4 +848,5 @@ void http_conn::process()
     }
     //注册并监听写事件，写缓存输出
     modfd(m_epollfd, m_sockfd, EPOLLOUT);
+    printf("%s\n", "process()注册了写事件");
 }

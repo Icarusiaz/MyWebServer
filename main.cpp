@@ -45,6 +45,9 @@ int main()
     assert(users);
     int user_count = 0;
 
+    //初始化数据库读取表
+    users->initmysql_result();
+
     /**
      * @brief 创建监听socket文件描述符
      *     协议族为domain、协议类型为type、协议编号为protocol
