@@ -78,6 +78,46 @@ pthread.h
 semaphore.h
 -
 
+/home/von/Desktop/MyWebServer/log/block_queue.h
+iostream
+-
+stdlib.h
+-
+pthread.h
+-
+sys/time.h
+-
+
+/home/von/Desktop/MyWebServer/log/log.cpp
+string.h
+-
+time.h
+-
+sys/time.h
+-
+stdarg.h
+-
+log.h
+/home/von/Desktop/MyWebServer/log/log.h
+pthread.h
+-
+
+/home/von/Desktop/MyWebServer/log/log.h
+stdio.h
+-
+iostream
+-
+string
+-
+stdarg.h
+-
+pthread.h
+-
+block_queue.h
+/home/von/Desktop/MyWebServer/log/block_queue.h
+../lock/locker.h
+/home/von/Desktop/MyWebServer/lock/locker.h
+
 /home/von/Desktop/MyWebServer/main.cpp
 sys/socket.h
 -
@@ -101,6 +141,8 @@ iostream
 /home/von/Desktop/MyWebServer/timer/lst_timer.h
 ./http/http_conn.h
 /home/von/Desktop/MyWebServer/http/http_conn.h
+./log/log.h
+/home/von/Desktop/MyWebServer/log/log.h
 
 /home/von/Desktop/MyWebServer/threadpool/threadpool.h
 list
@@ -137,6 +179,8 @@ sys/socket.h
 -
 netinet/in.h
 -
+../log/log.h
+/home/von/Desktop/MyWebServer/log/log.h
 
 /home/von/Desktop/MyWebServer/utf8/utf8.h
 string

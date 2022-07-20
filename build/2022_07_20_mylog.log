@@ -1,0 +1,7 @@
+2022-07-20 19:51:12.523080 [info]: deal with the client(127.0.0.1)
+2022-07-20 19:51:12.523133 [info]: adjust timer once
+2022-07-20 19:51:12.764749 [info]: timer tick
+2022-07-20 19:51:17.765337 [info]: timer tick
+2022-07-20 19:51:22.765559 [info]: timer tick
+2022-07-20 19:51:27.767081 [info]: timer tick
+2022-07-20 19:51:27.767189 [info]: close fd 13

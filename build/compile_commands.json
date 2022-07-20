@@ -1,22 +1,27 @@
 [
 {
   "directory": "/home/von/Desktop/MyWebServer/build",
-  "command": "/usr/bin/g++   -I/home/von/Desktop/MyWebServer/http, -I/home/von/Desktop/MyWebServer/lock,/home/von/Desktop/MyWebServer/CGImysql  -g   -o CMakeFiles/main_exe.dir/main.cpp.o -c /home/von/Desktop/MyWebServer/main.cpp",
+  "command": "/usr/bin/g++   -I/home/von/Desktop/MyWebServer/http, -I/home/von/Desktop/MyWebServer/lock,/home/von/Desktop/MyWebServer/CGImysql,/home/von/Desktop/MyWebServer/log  -g   -o CMakeFiles/main_exe.dir/main.cpp.o -c /home/von/Desktop/MyWebServer/main.cpp",
   "file": "/home/von/Desktop/MyWebServer/main.cpp"
 },
 {
   "directory": "/home/von/Desktop/MyWebServer/build",
-  "command": "/usr/bin/g++   -I/home/von/Desktop/MyWebServer/http, -I/home/von/Desktop/MyWebServer/lock,/home/von/Desktop/MyWebServer/CGImysql  -g   -o CMakeFiles/main_exe.dir/http/http_conn.cpp.o -c /home/von/Desktop/MyWebServer/http/http_conn.cpp",
+  "command": "/usr/bin/g++   -I/home/von/Desktop/MyWebServer/http, -I/home/von/Desktop/MyWebServer/lock,/home/von/Desktop/MyWebServer/CGImysql,/home/von/Desktop/MyWebServer/log  -g   -o CMakeFiles/main_exe.dir/http/http_conn.cpp.o -c /home/von/Desktop/MyWebServer/http/http_conn.cpp",
   "file": "/home/von/Desktop/MyWebServer/http/http_conn.cpp"
 },
 {
   "directory": "/home/von/Desktop/MyWebServer/build",
-  "command": "/usr/bin/g++   -I/home/von/Desktop/MyWebServer/http, -I/home/von/Desktop/MyWebServer/lock,/home/von/Desktop/MyWebServer/CGImysql  -g   -o CMakeFiles/main_exe.dir/CGImysql/sql_connection_pool.cpp.o -c /home/von/Desktop/MyWebServer/CGImysql/sql_connection_pool.cpp",
+  "command": "/usr/bin/g++   -I/home/von/Desktop/MyWebServer/http, -I/home/von/Desktop/MyWebServer/lock,/home/von/Desktop/MyWebServer/CGImysql,/home/von/Desktop/MyWebServer/log  -g   -o CMakeFiles/main_exe.dir/CGImysql/sql_connection_pool.cpp.o -c /home/von/Desktop/MyWebServer/CGImysql/sql_connection_pool.cpp",
   "file": "/home/von/Desktop/MyWebServer/CGImysql/sql_connection_pool.cpp"
 },
 {
   "directory": "/home/von/Desktop/MyWebServer/build",
-  "command": "/usr/bin/g++   -I/home/von/Desktop/MyWebServer/http, -I/home/von/Desktop/MyWebServer/lock,/home/von/Desktop/MyWebServer/CGImysql  -g   -o CMakeFiles/main_exe.dir/utf8/utf8.cpp.o -c /home/von/Desktop/MyWebServer/utf8/utf8.cpp",
+  "command": "/usr/bin/g++   -I/home/von/Desktop/MyWebServer/http, -I/home/von/Desktop/MyWebServer/lock,/home/von/Desktop/MyWebServer/CGImysql,/home/von/Desktop/MyWebServer/log  -g   -o CMakeFiles/main_exe.dir/utf8/utf8.cpp.o -c /home/von/Desktop/MyWebServer/utf8/utf8.cpp",
   "file": "/home/von/Desktop/MyWebServer/utf8/utf8.cpp"
+},
+{
+  "directory": "/home/von/Desktop/MyWebServer/build",
+  "command": "/usr/bin/g++   -I/home/von/Desktop/MyWebServer/http, -I/home/von/Desktop/MyWebServer/lock,/home/von/Desktop/MyWebServer/CGImysql,/home/von/Desktop/MyWebServer/log  -g   -o CMakeFiles/main_exe.dir/log/log.cpp.o -c /home/von/Desktop/MyWebServer/log/log.cpp",
+  "file": "/home/von/Desktop/MyWebServer/log/log.cpp"
 }
 ]

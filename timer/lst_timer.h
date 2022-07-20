@@ -10,6 +10,7 @@
 #include <pthread.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include "../log/log.h"
 
 #define BUFFER_SIZE 64
 
@@ -156,6 +157,9 @@ public:
         {
             return;
         }
+
+        LOG_INFO("%s", "timer tick");
+        Log::get_instance()->flush();
 
         //获取当前时间
         time_t cur = time(NULL);

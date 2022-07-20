@@ -10,6 +10,7 @@
 #include "./CGImysql/sql_connection_pool.h"
 #include "./timer/lst_timer.h"
 #include "./http/http_conn.h"
+#include "./log/log.h"
 
 #define MAX_FD 65536           //最大文件描述符
 #define MAX_EVENT_NUMBER 10000 //最大事件数
@@ -85,11 +86,16 @@ void cb_func(client_data *user_data)
 
     //减少连接数
     http_conn::m_user_count--;
+
+    LOG_INFO("close fd %d", user_data->sockfd);
+    Log::get_instance()->flush();
 }
 
 // int main(int argc, char *argv[])
 int main()
 {
+    Log::get_instance()->init("./mylog.log", 8192, 2000000, 10); //异步日志模型
+
     //忽略SIGPIPE信号
     addsig(SIGPIPE, SIG_IGN);
 
@@ -194,6 +200,8 @@ int main()
         int number = epoll_wait(epollfd, events, MAX_EVENT_NUMBER, -1);
         if (number < 0 && errno != EINTR)
         {
+            LOG_ERROR("%s", "epoll failure");
+            Log::get_instance()->flush();
             break;
         }
 
@@ -217,11 +225,15 @@ int main()
 
                 if (connfd < 0)
                 {
+                    LOG_ERROR("%s:errno is:%d", "accept error", errno);
+                    Log::get_instance()->flush();
                     continue;
                 }
                 if (http_conn::m_user_count >= MAX_FD)
                 {
                     show_error(connfd, "Internal server is busy");
+                    LOG_ERROR("%s", "Internal server busy");
+                    Log::get_instance()->flush();
                     continue;
                 }
                 // http与socket一一对应，将新的socket加入epoll，应对后面的传输
@@ -313,6 +325,9 @@ int main()
                 {
                     printf("%s\n", users[sockfd].m_read_buf);
 
+                    LOG_INFO("deal with the client(%s)", inet_ntoa(users[sockfd].get_address()->sin_addr));
+                    Log::get_instance()->flush();
+
                     //处理读入的请求
                     // users[sockfd].process();
                     pool->append(users + sockfd);
@@ -324,6 +339,9 @@ int main()
                         time_t cur = time(NULL);
                         timer->expire = cur + 3 * TIMESLOT;
                         timer_lst.adjust_timer(timer);
+
+                        LOG_INFO("%s", "adjust timer once");
+                        Log::get_instance()->flush();
                     }
                 }
                 else

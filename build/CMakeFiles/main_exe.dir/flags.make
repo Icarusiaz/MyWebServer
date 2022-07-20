@@ -6,5 +6,5 @@ CXX_FLAGS = -g
 
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/von/Desktop/MyWebServer/http, -I/home/von/Desktop/MyWebServer/lock,/home/von/Desktop/MyWebServer/CGImysql 
+CXX_INCLUDES = -I/home/von/Desktop/MyWebServer/http, -I/home/von/Desktop/MyWebServer/lock,/home/von/Desktop/MyWebServer/CGImysql,/home/von/Desktop/MyWebServer/log 
 

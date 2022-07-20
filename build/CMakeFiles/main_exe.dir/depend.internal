@@ -11,10 +11,17 @@ CMakeFiles/main_exe.dir/http/http_conn.cpp.o
  /home/von/Desktop/MyWebServer/http/http_conn.h
  /home/von/Desktop/MyWebServer/lock/locker.h
  /home/von/Desktop/MyWebServer/utf8/utf8.h
+CMakeFiles/main_exe.dir/log/log.cpp.o
+ /home/von/Desktop/MyWebServer/lock/locker.h
+ /home/von/Desktop/MyWebServer/log/block_queue.h
+ /home/von/Desktop/MyWebServer/log/log.cpp
+ /home/von/Desktop/MyWebServer/log/log.h
 CMakeFiles/main_exe.dir/main.cpp.o
  /home/von/Desktop/MyWebServer/CGImysql/sql_connection_pool.h
  /home/von/Desktop/MyWebServer/http/http_conn.h
  /home/von/Desktop/MyWebServer/lock/locker.h
+ /home/von/Desktop/MyWebServer/log/block_queue.h
+ /home/von/Desktop/MyWebServer/log/log.h
  /home/von/Desktop/MyWebServer/main.cpp
  /home/von/Desktop/MyWebServer/threadpool/threadpool.h
  /home/von/Desktop/MyWebServer/timer/lst_timer.h

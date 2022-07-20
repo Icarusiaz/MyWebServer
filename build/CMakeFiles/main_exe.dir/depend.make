@@ -11,9 +11,16 @@ CMakeFiles/main_exe.dir/http/http_conn.cpp.o: ../http/http_conn.h
 CMakeFiles/main_exe.dir/http/http_conn.cpp.o: ../lock/locker.h
 CMakeFiles/main_exe.dir/http/http_conn.cpp.o: ../utf8/utf8.h
 
+CMakeFiles/main_exe.dir/log/log.cpp.o: ../lock/locker.h
+CMakeFiles/main_exe.dir/log/log.cpp.o: ../log/block_queue.h
+CMakeFiles/main_exe.dir/log/log.cpp.o: ../log/log.cpp
+CMakeFiles/main_exe.dir/log/log.cpp.o: ../log/log.h
+
 CMakeFiles/main_exe.dir/main.cpp.o: ../CGImysql/sql_connection_pool.h
 CMakeFiles/main_exe.dir/main.cpp.o: ../http/http_conn.h
 CMakeFiles/main_exe.dir/main.cpp.o: ../lock/locker.h
+CMakeFiles/main_exe.dir/main.cpp.o: ../log/block_queue.h
+CMakeFiles/main_exe.dir/main.cpp.o: ../log/log.h
 CMakeFiles/main_exe.dir/main.cpp.o: ../main.cpp
 CMakeFiles/main_exe.dir/main.cpp.o: ../threadpool/threadpool.h
 CMakeFiles/main_exe.dir/main.cpp.o: ../timer/lst_timer.h

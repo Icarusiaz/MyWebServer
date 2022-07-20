@@ -177,6 +177,33 @@ http/http_conn.cpp.s:
 	$(MAKE) -f CMakeFiles/main_exe.dir/build.make CMakeFiles/main_exe.dir/http/http_conn.cpp.s
 .PHONY : http/http_conn.cpp.s
 
+log/log.o: log/log.cpp.o
+
+.PHONY : log/log.o
+
+# target to build an object file
+log/log.cpp.o:
+	$(MAKE) -f CMakeFiles/main_exe.dir/build.make CMakeFiles/main_exe.dir/log/log.cpp.o
+.PHONY : log/log.cpp.o
+
+log/log.i: log/log.cpp.i
+
+.PHONY : log/log.i
+
+# target to preprocess a source file
+log/log.cpp.i:
+	$(MAKE) -f CMakeFiles/main_exe.dir/build.make CMakeFiles/main_exe.dir/log/log.cpp.i
+.PHONY : log/log.cpp.i
+
+log/log.s: log/log.cpp.s
+
+.PHONY : log/log.s
+
+# target to generate assembly for a file
+log/log.cpp.s:
+	$(MAKE) -f CMakeFiles/main_exe.dir/build.make CMakeFiles/main_exe.dir/log/log.cpp.s
+.PHONY : log/log.cpp.s
+
 main.o: main.cpp.o
 
 .PHONY : main.o
@@ -246,6 +273,9 @@ help:
 	@echo "... http/http_conn.o"
 	@echo "... http/http_conn.i"
 	@echo "... http/http_conn.s"
+	@echo "... log/log.o"
+	@echo "... log/log.i"
+	@echo "... log/log.s"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
