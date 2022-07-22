@@ -222,39 +222,3 @@ private:
 };
 
 /**********************************TODO 时间堆****************************************/
-//比较函数
-struct cmp //重写仿函数
-{
-    bool operator()(util_timer *a, util_timer *b)
-    {
-        return a->expire > b->expire; //小顶堆
-    }
-};
-
-//堆容器
-class sorted_timer
-{
-public:
-    sorted_timer() {}
-    ~sorted_timer()
-    {
-    }
-
-    //添加定时器，内部调用私有成员add_timer
-    void add_timer(util_timer *timer)
-    {
-        if (!timer)
-            return;
-        heap.push(timer);
-    }
-
-    //调整定时器，任务发生变化时，调整定时器在链表中的位置
-    void adjust_timer(util_timer *timer)
-    {
-        if (!timer)
-            return;
-    }
-
-private:
-    std::priority_queue<util_timer *, std::vector<util_timer *>, cmp> heap;
-};

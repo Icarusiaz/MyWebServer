@@ -88,20 +88,6 @@ pthread.h
 sys/time.h
 -
 
-/home/von/Desktop/MyWebServer/log/log.cpp
-string.h
--
-time.h
--
-sys/time.h
--
-stdarg.h
--
-log.h
-/home/von/Desktop/MyWebServer/log/log.h
-pthread.h
--
-
 /home/von/Desktop/MyWebServer/log/log.h
 stdio.h
 -

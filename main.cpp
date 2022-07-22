@@ -18,7 +18,6 @@
 
 //这三个函数在http_conn.cpp中定义，改变链接属性
 extern int addfd(int epollfd, int fd, bool one_shot);
-// extern int remove(int epollfd, int fd);
 extern int setnonblocking(int fd);
 
 //设置定时器相关参数
@@ -29,6 +28,8 @@ static int epollfd = 0;
 //信号处理函数
 void sig_handler(int sig)
 {
+    printf("%s\n", "alarm信号处理");
+
     //为保证函数的可重入性，保留原来的errno
     //可重入性表示中断后再次进入该函数，环境变量与之前相同，不会丢失数据
     int save_errno = errno;
@@ -43,7 +44,7 @@ void sig_handler(int sig)
 
 void show_error(int connfd, const char *info)
 {
-    printf("%s", info);
+    // printf("%s", info);
     send(connfd, info, strlen(info), 0);
     close(connfd);
 }
@@ -81,20 +82,30 @@ void cb_func(client_data *user_data)
     //删除非活动连接在socket上的注册事件，并关闭
     epoll_ctl(epollfd, EPOLL_CTL_DEL, user_data->sockfd, 0);
     assert(user_data);
-    printf("%s%d\n", "超时, 关闭socket: ", user_data->sockfd);
+    // printf("%s%d\n", "超时, 关闭socket: ", user_data->sockfd);
     close(user_data->sockfd);
-
-    //减少连接数
-    http_conn::m_user_count--;
 
     LOG_INFO("close fd %d", user_data->sockfd);
     Log::get_instance()->flush();
+}
+
+//设置信号为LT阻塞模式
+void addfd_lt(int epollfd, int fd, bool one_shot)
+{
+    epoll_event event;
+    event.data.fd = fd;
+    event.events = EPOLLIN | EPOLLRDHUP;
+    if (one_shot)
+        event.events |= EPOLLONESHOT;
+    epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event);
 }
 
 // int main(int argc, char *argv[])
 int main()
 {
     Log::get_instance()->init("./mylog.log", 8192, 2000000, 10); //异步日志模型
+
+    int port = 8001;
 
     //忽略SIGPIPE信号
     addsig(SIGPIPE, SIG_IGN);
@@ -108,17 +119,15 @@ int main()
     catch (const std::exception &e)
     {
         std::cerr << e.what() << '\n';
+        return 1;
     }
 
     //创建数据库连接池
     connection_pool *connPool = connection_pool::GetInstance("localhost", "root", "1234", "myserver", 3306, 5);
 
-    // int port = atoi(argv[1]);
-    int port = 8001;
-
+    // http_conn数组；用户
     http_conn *users = new http_conn[MAX_FD];
     assert(users);
-    int user_count = 0;
 
     //初始化数据库读取表
     users->initmysql_result();
@@ -155,17 +164,16 @@ int main()
     ret = listen(listenfd, 5);
     assert(ret >= 0);
 
+    /* 用于存储epoll事件表中就绪事件的event数组 */
+    epoll_event events[MAX_EVENT_NUMBER];
     /* 创建一个额外的文件描述符来唯一标识内核中的epoll事件表 */
     int epollfd = epoll_create(5);
     assert(epollfd != -1);
-
+    /* 主线程往epoll内核事件表中注册监听socket事件，当listen到新的客户连接时，listenfd变为就绪事件 */
+    // listenfd需要水平触发
+    addfd_lt(epollfd, listenfd, false);
     //将上述epollfd赋值给http类的m_epollfd属性
     http_conn::m_epollfd = epollfd;
-
-    /* 用于存储epoll事件表中就绪事件的event数组 */
-    epoll_event *events = new epoll_event[MAX_EVENT_NUMBER];
-    /* 主线程往epoll内核事件表中注册监听socket事件，当listen到新的客户连接时，listenfd变为就绪事件 */
-    addfd(epollfd, listenfd, false);
 
     //创建管道
     ret = socketpair(PF_UNIX, SOCK_STREAM, 0, pipefd);
@@ -194,7 +202,7 @@ int main()
     bool stop_server = false;
     while (!stop_server)
     {
-        printf("%s", "epoll_wait等待中...\n");
+        // printf("%s", "epoll_wait等待中...\n");
 
         /* 主线程调用epoll_wait等待一组文件描述符上的事件，并将当前所有就绪的epoll_event复制到events数组中 */
         int number = epoll_wait(epollfd, events, MAX_EVENT_NUMBER, -1);
@@ -205,7 +213,7 @@ int main()
             break;
         }
 
-        printf("%s%d\n", "epoll_wait取得事件数: ", number);
+        // printf("%s%d\n", "epoll_wait取得事件数: ", number);
 
         /* 遍历这一数组以处理这些已经就绪的事件 */
         for (int i = 0; i < number; ++i)
@@ -221,7 +229,7 @@ int main()
 
                 int connfd = accept(listenfd, (struct sockaddr *)&client_address, &client_addrlength); //新socket
 
-                printf("%s%d\n", "产生了传输socket: ", connfd);
+                // printf("%s%d\n", "产生了传输socket: ", connfd);
 
                 if (connfd < 0)
                 {
@@ -260,7 +268,7 @@ int main()
             //处理异常事件
             else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR))
             {
-                printf("%s\n", "异常事件！");
+                // printf("%s\n", "异常事件！");
 
                 //重复关闭？
                 users[sockfd].close_conn();
@@ -276,7 +284,7 @@ int main()
             //管道读端对应文件描述符发生读事件，处理信号
             else if ((sockfd == pipefd[0]) && (events[i].events & EPOLLIN))
             {
-                printf("%s\n", "收到信号");
+                // printf("%s\n", "收到信号");
 
                 int sig;
                 char signals[1024];
@@ -286,7 +294,6 @@ int main()
                 ret = recv(pipefd[0], signals, sizeof(signals), 0);
                 if (ret == -1)
                 {
-                    // handle the error
                     continue;
                 }
                 else if (ret == 0)
@@ -315,7 +322,7 @@ int main()
             //处理客户连接上接收到的数据
             else if (events[i].events & EPOLLIN)
             {
-                printf("%s\n", "处理客户连接上接收到的数据");
+                // printf("%s\n", "处理客户连接上接收到的数据");
 
                 //创建定时器临时变量，将该连接对应的定时器取出来
                 util_timer *timer = users_timer[sockfd].timer;
@@ -323,13 +330,12 @@ int main()
                 //读入对应缓冲区
                 if (users[sockfd].read_once())
                 {
-                    printf("%s\n", users[sockfd].m_read_buf);
+                    // printf("%s\n", users[sockfd].m_read_buf);
 
                     LOG_INFO("deal with the client(%s)", inet_ntoa(users[sockfd].get_address()->sin_addr));
                     Log::get_instance()->flush();
 
                     //处理读入的请求
-                    // users[sockfd].process();
                     pool->append(users + sockfd);
 
                     //若有数据传输，则将定时器往后延迟3个单位
@@ -358,14 +364,14 @@ int main()
             }
             else if (events[i].events & EPOLLOUT)
             {
-                printf("%s\n", "处理写事件");
+                // printf("%s\n", "处理写事件");
 
                 util_timer *timer = users_timer[sockfd].timer;
                 if (users[sockfd].write())
                 {
                     //若有数据传输，则将定时器往后延迟3个单位
                     //并对新的定时器在链表上的位置进行调整
-                    users[sockfd].close_conn();
+                    // users[sockfd].close_conn();
 
                     if (timer)
                     {
@@ -404,5 +410,7 @@ int main()
     delete pool;
     //销毁数据库连接池
     connPool->DestroyPool();
+
+    printf("%s\n", "服务器停止运行！");
     return 0;
 }

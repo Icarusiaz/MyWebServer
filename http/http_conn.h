@@ -92,8 +92,6 @@ public:
 
     //同步线程初始化数据库读取表
     void initmysql_result();
-    // CGI使用线程池初始化数据库表
-    // void initresultFile(connection_pool *connPool);
 
 private:
     void init();
@@ -108,9 +106,9 @@ private:
     HTTP_CODE parse_headers(char *text);
     //主状态机解析报文中的请求内容
     HTTP_CODE parse_content(char *text);
-
     //生成响应报文
     HTTP_CODE do_request();
+
     // m_start_line是已经解析的字符，get_line用于将指针向后偏移，指向未处理的字符
     char *get_line()
     {
@@ -134,16 +132,13 @@ public:
     static int m_epollfd;
     static int m_user_count;
 
-    //为了调试打印，设为公有变量
-    char m_read_buf[READ_BUFFER_SIZE];
-
 private:
     // 传输socket
     int m_sockfd;
     sockaddr_in m_address;
 
     //存储读取的请求报文数据
-    // char m_read_buf[READ_BUFFER_SIZE];
+    char m_read_buf[READ_BUFFER_SIZE];
     //缓冲区中m_read_buf中数据的最后一个字节的下一个位置
     int m_read_idx;
     // m_read_buf读取的位置m_checked_idx

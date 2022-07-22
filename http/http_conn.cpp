@@ -1,5 +1,5 @@
-#include <map>
 #include "./http_conn.h"
+#include "../log/log.h"
 #include <map>
 #include <mysql/mysql.h>
 
@@ -32,8 +32,7 @@ void http_conn::initmysql_result()
     //在user表中检索username，passwd数据，浏览器端输入;返回0则成功
     if (mysql_query(mysql, "SELECT username,passwd FROM user"))
     {
-        printf("INSERT error:%s\n", mysql_error(mysql));
-        // return;
+        LOG_ERROR("SELECT error:%s\n", mysql_error(mysql));
     }
 
     //从表中检索完整的结果集
@@ -53,6 +52,10 @@ void http_conn::initmysql_result()
         users[temp1] = temp2;
     }
 
+    //将连接归还连接池
+    connPool->ReleaseConnection(mysql);
+
+    /*=========================打印===============================*/
     printf("%s\n", "数据库中的用户：");
     map<string, string>::iterator it;
     for (it = users.begin(); it != users.end(); it++)
@@ -60,9 +63,6 @@ void http_conn::initmysql_result()
         printf("%s %s\n", (*it).first.c_str(), (*it).second.c_str());
     }
 }
-
-int http_conn::m_user_count = 0;
-int http_conn::m_epollfd = -1;
 
 //对文件描述符设置非阻塞
 int setnonblocking(int fd)
@@ -97,7 +97,7 @@ void addfd(int epollfd, int fd, bool one_shot)
     setnonblocking(fd);
 }
 
-//从内核时间表删除描述符
+//从内核事件表删除描述符
 void removefd(int epollfd, int fd)
 {
     epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, 0);
@@ -112,6 +112,9 @@ void modfd(int epollfd, int fd, int ev)
     event.events = ev | EPOLLET | EPOLLONESHOT | EPOLLRDHUP;
     epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &event);
 }
+
+int http_conn::m_user_count = 0;
+int http_conn::m_epollfd = -1;
 
 //关闭连接，关闭一个连接，客户总量减一
 void http_conn::close_conn(bool real_close)
@@ -152,37 +155,6 @@ void http_conn::init()
     memset(m_read_buf, '\0', READ_BUFFER_SIZE); // char 空字符
     memset(m_write_buf, '\0', WRITE_BUFFER_SIZE);
     memset(m_real_file, '\0', FILENAME_LEN);
-}
-
-//循环读取客户数据，直到无数据可读或对方关闭连接
-//非阻塞ET工作模式下，需要一次性将数据读完
-bool http_conn::read_once()
-{
-    if (m_read_idx >= READ_BUFFER_SIZE)
-    {
-        return false;
-    }
-    int bytes_read = 0;
-    while (true)
-    {
-        //返回其实际copy的字节数；数组指针+偏移
-        bytes_read = recv(m_sockfd, m_read_buf + m_read_idx, READ_BUFFER_SIZE - m_read_idx, 0);
-        if (bytes_read == -1)
-        {
-            //非阻塞ET模式下，需要一次性将数据读完，EAGAIN即缓冲区无数据可读(读完)
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
-                break;
-            return false;
-        }
-        //网络中断，socket关闭
-        else if (bytes_read == 0)
-        {
-            return false;
-        }
-        //修改m_read_idx
-        m_read_idx += bytes_read;
-    }
-    return true;
 }
 
 //从状态机，用于读取一行内容
@@ -228,6 +200,37 @@ http_conn::LINE_STATUS http_conn::parse_line()
     }
     //并没有找到\r\n，需要继续接收
     return LINE_OPEN;
+}
+
+//循环读取客户数据，直到无数据可读或对方关闭连接
+//非阻塞ET工作模式下，需要一次性将数据读完
+bool http_conn::read_once()
+{
+    if (m_read_idx >= READ_BUFFER_SIZE)
+    {
+        return false;
+    }
+    int bytes_read = 0;
+    while (true)
+    {
+        //返回其实际copy的字节数；数组指针+偏移
+        bytes_read = recv(m_sockfd, m_read_buf + m_read_idx, READ_BUFFER_SIZE - m_read_idx, 0);
+        if (bytes_read == -1)
+        {
+            //非阻塞ET模式下，需要一次性将数据读完，EAGAIN即缓冲区无数据可读(读完)
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+                break;
+            return false;
+        }
+        //网络中断，socket关闭
+        else if (bytes_read == 0)
+        {
+            return false;
+        }
+        //修改m_read_idx
+        m_read_idx += bytes_read;
+    }
+    return true;
 }
 
 //解析http请求行，获得请求方法，目标url及http版本号
@@ -345,6 +348,8 @@ http_conn::HTTP_CODE http_conn::parse_headers(char *text)
     else
     {
         // printf("oop!unknow header: %s\n", text);
+        LOG_INFO("oop!unknow header: %s", text);
+        Log::get_instance()->flush();
     }
     return NO_REQUEST;
 }
@@ -379,6 +384,9 @@ http_conn::HTTP_CODE http_conn::process_read()
         text = get_line();
         m_start_line = m_checked_idx;
 
+        LOG_INFO("%s", text);
+        Log::get_instance()->flush();
+
         //主状态机的三种状态转移逻辑
         switch (m_check_state)
         {
@@ -388,7 +396,7 @@ http_conn::HTTP_CODE http_conn::process_read()
             ret = parse_request_line(text);
             if (ret == BAD_REQUEST)
             {
-                printf("%s\n", "process_read() 解析请求行错误！");
+                // printf("%s\n", "process_read() 解析请求行错误！");
                 return BAD_REQUEST;
             }
             break;
@@ -399,13 +407,13 @@ http_conn::HTTP_CODE http_conn::process_read()
             ret = parse_headers(text);
             if (ret == BAD_REQUEST)
             {
-                printf("%s\n", "process_read() 解析请求头错误！");
+                // printf("%s\n", "process_read() 解析请求头错误！");
                 return BAD_REQUEST;
             }
             //完整解析GET请求后，跳转到报文响应函数
             else if (ret == GET_REQUEST)
             {
-                printf("%s\n", "process_read() 已经完整解析GET请求");
+                // printf("%s\n", "process_read() 已经完整解析GET请求");
                 return do_request();
             }
             break;
@@ -439,8 +447,6 @@ http_conn::HTTP_CODE http_conn::do_request()
     //找到m_url中/的位置
     const char *p = strrchr(m_url, '/');
 
-    printf("%s%d\n", "do_request() 的cgi = ", cgi);
-
     //实现登录和注册校验
     if (cgi == 1 && (*(p + 1) == '2' || *(p + 1) == '3'))
     {
@@ -455,7 +461,6 @@ http_conn::HTTP_CODE http_conn::do_request()
         // utf8转中文
         string temp = UTF8Url::Decode(m_string);
         strcpy(m_string, temp.c_str());
-        printf("%s%s\n", "m_string: ", m_string);
 
         //将用户名和密码提取出来
         char name[100], password[100];
@@ -496,7 +501,7 @@ http_conn::HTTP_CODE http_conn::do_request()
             {
                 pthread_mutex_lock(&lock);
                 int res = mysql_query(mysql, sql_insert);
-                printf("%s%s%d\n", sql_insert, "查询结果：", res);
+                // printf("%s%s%d\n", sql_insert, "查询结果：", res);
 
                 users.insert(pair<string, string>(name, password));
                 pthread_mutex_unlock(&lock);
@@ -513,7 +518,8 @@ http_conn::HTTP_CODE http_conn::do_request()
         //若浏览器端输入的用户名和密码在表中可以查找到，返回1，否则返回0
         else if (*(p + 1) == '2')
         {
-            printf("%s%s%s%s\n", "do_request()接收到的用户: ", name, "密码: ", password);
+            // printf("%s%s%s%s\n", "do_request()接收到的用户: ", name, "密码: ", password);
+
             if (users.find(name) != users.end() && users[name] == password)
                 strcpy(m_url, "/welcome.html");
             else
@@ -545,46 +551,140 @@ http_conn::HTTP_CODE http_conn::do_request()
     }
     else
     {
-        printf("%s\n", "请求文件");
+        // printf("%s\n", "请求文件");
         //如果以上均不符合，即不是登录和注册，直接将url与网站目录拼接
         //这里的情况是welcome界面，请求服务器上的一个图片
         strncpy(m_real_file + len, m_url, FILENAME_LEN - len - 1);
-        printf("%s\n", m_real_file);
     }
 
     //通过stat获取请求资源文件信息，成功则将信息更新到m_file_stat结构体
     //失败返回NO_RESOURCE状态，表示资源不存在
     if (stat(m_real_file, &m_file_stat) < 0)
     {
-        printf("%s\n", "资源不存在");
+        // printf("%s\n", "资源不存在");
         return NO_REQUEST;
     }
 
     //判断文件的权限，是否可读，不可读则返回FORBIDDEN_REQUEST状态
     if (!(m_file_stat.st_mode & S_IROTH))
     {
-        printf("%s\n", "资源不可读");
+        // printf("%s\n", "资源不可读");
         return FORBIDDEN_REQUEST;
     }
 
     //判断文件类型，如果是目录，则返回BAD_REQUEST，表示请求报文有误
     if (S_ISDIR(m_file_stat.st_mode))
     {
-        printf("%s\n", "请求报文有误");
+        // printf("%s\n", "请求报文有误");
         return BAD_REQUEST;
     }
 
-    printf("%s\n", "文件打开中...");
+    // printf("%s\n", "文件打开中...");
     //以只读方式获取文件描述符，通过mmap将该文件映射到内存中
     int fd = open(m_real_file, O_RDONLY);
     m_file_address = (char *)mmap(0, m_file_stat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-    printf("%s%s\n", "m_file_address: ", m_file_address);
+    // printf("%s%s\n", "m_file_address: ", m_file_address);
 
     //避免文件描述符的浪费和占用
     close(fd);
 
     //表示请求文件存在，且可以访问
     return FILE_REQUEST;
+}
+
+void http_conn::unmap()
+{
+    if (m_file_address)
+    {
+        munmap(m_file_address, m_file_stat.st_size);
+        m_file_address = 0;
+    }
+}
+
+bool http_conn::write()
+{
+    int temp = 0;
+
+    bytes_have_send = 0;
+    bytes_to_send = m_write_idx;
+
+    int newadd = 0;
+
+    //若要发送的数据长度为0
+    //表示响应报文为空，一般不会出现这种情况
+    if (bytes_to_send == 0)
+    {
+        modfd(m_epollfd, m_sockfd, EPOLLIN);
+        init();
+        return true;
+    }
+
+    while (true)
+    {
+        //将响应报文的状态行、消息头、空行和响应正文发送给浏览器端
+        temp = writev(m_sockfd, m_iv, m_iv_count);
+
+        if (temp >= 0)
+        {
+            //更新已发送字节
+            bytes_have_send += temp;
+
+            //偏移 文件 iovec的指针
+            newadd = bytes_have_send - m_write_idx;
+        }
+        else
+        {
+            //判断缓冲区是否满了
+            if (errno == EAGAIN)
+            {
+                //第一个iovec头部信息的数据已发送完，发送第二个iovec数据
+                if (bytes_have_send >= m_iv[0].iov_len)
+                {
+                    //不再继续发送头部信息
+                    m_iv[0].iov_len = 0;
+                    m_iv[1].iov_base = m_file_address + newadd;
+                    m_iv[1].iov_len = bytes_to_send;
+                }
+                //继续发送第一个iovec头部信息的数据
+                else
+                {
+                    m_iv[0].iov_base = m_write_buf + bytes_have_send;
+                    m_iv[0].iov_len = m_iv[0].iov_len - bytes_have_send;
+                }
+                //重新注册写事件
+                modfd(m_epollfd, m_sockfd, EPOLLOUT);
+                // printf("%s\n", "write()注册了写事件");
+                return true;
+            }
+            //如果发送失败，但不是缓冲区问题，取消映射
+            unmap();
+            return false;
+        }
+
+        //更新已发送字节数
+        bytes_to_send -= temp;
+
+        //判断条件，数据已全部发送完
+        if (bytes_to_send <= 0)
+        {
+            unmap();
+
+            //在epoll树上重置EPOLLONESHOT事件
+            modfd(m_epollfd, m_sockfd, EPOLLIN);
+
+            //浏览器的请求为长连接
+            if (m_linger)
+            {
+                //重新初始化HTTP对象
+                init();
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+    }
 }
 
 //写入写缓存
@@ -614,6 +714,9 @@ bool http_conn::add_response(const char *format, ...)
     m_write_idx += len;
     //清空可变参列表
     va_end(arg_list);
+
+    LOG_INFO("request:%s", m_write_buf);
+    Log::get_instance()->flush();
 
     return true;
 }
@@ -733,112 +836,21 @@ bool http_conn::process_write(HTTP_CODE ret)
     return true;
 }
 
-void http_conn::unmap()
-{
-    if (m_file_address)
-    {
-        munmap(m_file_address, m_file_stat.st_size);
-        m_file_address = 0;
-    }
-}
-
-bool http_conn::write()
-{
-    int temp = 0;
-    int newadd = 0;
-
-    //若要发送的数据长度为0
-    //表示响应报文为空，一般不会出现这种情况
-    if (bytes_to_send == 0)
-    {
-        modfd(m_epollfd, m_sockfd, EPOLLIN);
-        init();
-        return true;
-    }
-
-    while (true)
-    {
-        //将响应报文的状态行、消息头、空行和响应正文发送给浏览器端
-        temp = writev(m_sockfd, m_iv, m_iv_count);
-
-        if (temp > 0)
-        {
-            //更新已发送字节
-            bytes_have_send += temp;
-
-            //偏移 文件 iovec的指针
-            newadd = bytes_have_send - m_write_idx;
-        }
-        if (temp <= -1)
-        {
-            //判断缓冲区是否满了
-            if (errno == EAGAIN)
-            {
-                //第一个iovec头部信息的数据已发送完，发送第二个iovec数据
-                if (bytes_have_send >= m_iv[0].iov_len)
-                {
-                    //不再继续发送头部信息
-                    m_iv[0].iov_len = 0;
-                    m_iv[1].iov_base = m_file_address + newadd;
-                    m_iv[1].iov_len = bytes_to_send;
-                }
-                //继续发送第一个iovec头部信息的数据
-                else
-                {
-                    m_iv[0].iov_base = m_write_buf + bytes_have_send;
-                    m_iv[0].iov_len = m_iv[0].iov_len - bytes_have_send;
-                }
-                //重新注册写事件
-                modfd(m_epollfd, m_sockfd, EPOLLOUT);
-                printf("%s\n", "write()注册了写事件");
-                return true;
-            }
-            //如果发送失败，但不是缓冲区问题，取消映射
-            unmap();
-            return false;
-        }
-
-        //更新已发送字节数
-        bytes_to_send -= temp;
-
-        //判断条件，数据已全部发送完
-        if (bytes_to_send <= 0)
-        {
-            unmap();
-
-            //在epoll树上重置EPOLLONESHOT事件
-            modfd(m_epollfd, m_sockfd, EPOLLIN);
-
-            //浏览器的请求为长连接
-            if (m_linger)
-            {
-                //重新初始化HTTP对象
-                init();
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-    }
-}
-
 void http_conn::process()
 {
-    printf("%s\n", "process()开始解析报文");
+    // printf("%s\n", "process()开始解析报文");
     //报文解析
     HTTP_CODE read_ret = process_read();
 
     // NO_REQUEST，表示请求不完整，需要继续接收请求数据
     if (read_ret == NO_REQUEST)
     {
-        printf("%s\n", "process() 报文不完整！");
+        // printf("%s\n", "process() 报文不完整！");
         //注册并监听读事件（m_sockfd 已经加入epoll）
         modfd(m_epollfd, m_sockfd, EPOLLIN);
         return;
     }
-    printf("%s\n", "process()解析报文完毕");
+    // printf("%s\n", "process()解析报文完毕");
 
     //调用process_write完成报文响应，写入写缓存
     bool write_ret = process_write(read_ret);
@@ -848,5 +860,5 @@ void http_conn::process()
     }
     //注册并监听写事件，写缓存输出
     modfd(m_epollfd, m_sockfd, EPOLLOUT);
-    printf("%s\n", "process()注册了写事件");
+    // printf("%s\n", "process()注册了写事件");
 }
